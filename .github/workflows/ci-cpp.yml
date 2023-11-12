@@ -1,0 +1,81 @@
+name: C++ CI
+
+on:
+  push:
+    paths: cpp/**
+  pull_request:
+    paths: cpp/**
+
+env:
+  cwd: cpp
+  cache-name: build-cache
+
+jobs:
+  suite:
+    name: C++ Build & Test
+    cancel-timeout-minutes: ${{ matrix.time_limit || 10 }}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+        include:
+          - os: ubuntu-latest
+            time_limit: 2
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.cwd }}
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          sparse-checkout: ${{ env.cwd }}
+
+      - name: Add cache
+        uses: actions/cache@v3
+        env:
+          base-key: ${{ env.cache-name }}-${{ runner.os }}
+        with:
+          path: |
+            ${{ env.cwd }}/zig-out
+            ${{ env.cwd }}/zig-cache
+            ${{ env.cwd }}/target
+            ${{ env.cwd }}/Cargo.lock
+          key: ${{ env.base-key }}-${{ env.cwd }}
+          restore-keys: ${{ env.base-key }}
+
+      - name: Set up Zig
+        uses: goto-bus-stop/setup-zig@v2
+
+      # Where the magic happens :sparkle:
+
+      - name: Build code (Zig)
+        id: zig_build
+        run: zig build --verbose --summary all --color on
+        continue-on-error: true
+      - name: Test code (Zig)
+        if: steps.zig_build.outcome == 'success'
+        run: zig test ${{ env.src_dir }} --color on
+        env:
+          src_dir: ${{ runner.os == 'Windows' && 'test/sanity.zig' || 'test/sanity.zig' }}
+
+      - name: Build code (Rust)
+        id: rs_build
+        if: steps.zig_build.outcome != 'success'
+        run: cargo build --verbose --color always
+      - name: Test code (Rust)
+        if: steps.rs_build.outcome != 'skipped'
+        run: cargo test --verbose --color always
+
+      - name: Upload build
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ env.cwd }}-${{ runner.os }}
+          path: |
+            ${{ env.cwd }}/src
+            ${{ env.cwd }}/zig-out
+            ${{ env.cwd }}/target/debug/cpp*
+            ${{ env.cwd }}/README.md
