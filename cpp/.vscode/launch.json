@@ -9,10 +9,13 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/zig-out/bin/lab-template",
+            // "args": [],
             "preLaunchTask": "build-exe",
             "cwd": ".",
             "MIMode": "lldb",
-            "targetArchitecture": "arm"
+            "targetArchitecture": "arm",
+            "internalConsoleOptions": "openOnSessionStart",
+            "args": ["<", "in.txt"],
         },
         {
             "name": "Debug Test Suite",
@@ -22,8 +25,7 @@
             "preLaunchTask": "build-test",
             "cwd": ".",
             "MIMode": "lldb",
-            "targetArchitecture": "arm"
-
+            "targetArchitecture": "arm",
         },
         {
             "name": "Test Current Zig File",
